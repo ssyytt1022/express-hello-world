@@ -1,80 +1,33 @@
-const express = require("express");
-const app = express();
-const expressWs = require("express-ws")(app);
+const express = require('express')
+const expressWs = require('express-ws')
 
-const port = process.env.PORT || 3001;
+const app = express()
+expressWs(app)
 
-// 显示聊天页面
-app.get("/", (req, res) => {
-    res.type("html").send(html);
-});
+const port = process.env.PORT || 3001
+let connects = []
 
-// WebSocket连接
-app.ws("/ws", (ws, req) => {
-    console.log("有用户连接");
+app.use(express.static('public'))
 
-    ws.on("message", (message) => {
-        console.log("收到消息：" + message);
+app.ws('/ws', (ws, req) => {
+  connects.push(ws)
 
-        // 把消息发送给所有已连接的用户
-        expressWs.getWss().clients.forEach((client) => {
-            if (client.readyState === 1) {
-                client.send(message.toString());
-            }
-        });
-    });
+  ws.on('message', (message) => {
+    console.log('Received:', message)
 
-    ws.on("close", () => {
-        console.log("有用户断开连接");
-    });
-});
+    connects.forEach((socket) => {
+      if (socket.readyState === 1) {
+        // Check if the connection is open
+        socket.send(message)
+      }
+    })
+  })
+
+  ws.on('close', () => {
+    connects = connects.filter((conn) => conn !== ws)
+  })
+})
 
 app.listen(port, () => {
-    console.log(`服务器已启动：http://localhost:${port}`);
-});
-
-const html = `
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>WebSocketチャット</title>
-</head>
-<body>
-    <h1>WebSocketチャット</h1>
-
-    <input id="message" type="text" placeholder="メッセージを入力">
-    <button onclick="sendMessage()">送信</button>
-
-    <ul id="messages"></ul>
-
-    <script>
-        const protocol =
-            location.protocol === "https:" ? "wss" : "ws";
-
-        const socket = new WebSocket(
-            protocol + "://" + location.host + "/ws"
-        );
-
-        socket.onopen = () => {
-            console.log("WebSocketに接続しました");
-        };
-
-        socket.onmessage = (event) => {
-            const li = document.createElement("li");
-            li.textContent = event.data;
-            document.getElementById("messages").appendChild(li);
-        };
-
-        function sendMessage() {
-            const input = document.getElementById("message");
-
-            if (input.value !== "") {
-                socket.send(input.value);
-                input.value = "";
-            }
-        }
-    </script>
-</body>
-</html>
-`;
+  console.log(`Server is running on http://localhost:${port}`)
+})
